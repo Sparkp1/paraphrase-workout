@@ -1,0 +1,700 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paraphrase workout</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#E8ECF0; --surface:#F7F9FB; --ink:#1B2433; --muted:#5E6878; --line:#CBD2DB;
+  --accent:#2F5BEA; --accent-soft:#DCE4FC; --best:#C9861F; --best-soft:#F6E7CC; --warn:#B4412F;
+  --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --ui:"Barlow","Segoe UI",system-ui,sans-serif;
+  --read:"Source Serif 4",Georgia,"Times New Roman",serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#12161D; --surface:#1A2029; --ink:#E4E8EE; --muted:#9AA4B2; --line:#2C3542;
+    --accent:#7C9BFF; --accent-soft:#233052; --best:#E9B45A; --best-soft:#3A2F1C; --warn:#F08A76;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#12161D; --surface:#1A2029; --ink:#E4E8EE; --muted:#9AA4B2; --line:#2C3542;
+  --accent:#7C9BFF; --accent-soft:#233052; --best:#E9B45A; --best-soft:#3A2F1C; --warn:#F08A76;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--ui);font-size:15px;line-height:1.45;overflow-x:hidden}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* Pinned bar */
+.bar{position:sticky;top:0;z-index:20;background:var(--surface);border-bottom:1px solid var(--line)}
+.bar-in{max-width:1280px;margin:0 auto;padding:10px 20px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px}
+.brand{display:flex;align-items:center;gap:14px;min-width:0}
+.brand h1{font-family:var(--display);font-weight:700;font-size:22px;margin:0;letter-spacing:.01em;white-space:nowrap}
+.tabs{display:flex;gap:2px;background:var(--bg);border-radius:8px;padding:3px}
+.tabs button{border:0;background:transparent;padding:5px 12px;border-radius:6px;font-weight:500;color:var(--muted)}
+.tabs button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 0 0 1px var(--line)}
+.clock{display:flex;align-items:center;gap:18px}
+.time{font-family:var(--display);font-weight:600;font-size:54px;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:.01em;min-width:3.6ch;text-align:center;transition:color .2s}
+.time[data-phase="running"]{color:var(--accent)}
+.time[data-phase="paused"]{color:var(--muted)}
+.splits{display:grid;grid-template-columns:auto auto;column-gap:8px;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.splits b{font-weight:600;color:var(--ink)}
+.idle-flag{grid-column:1/-1;color:var(--warn);font-weight:600;visibility:hidden}
+.idle-flag.on{visibility:visible}
+.controls{display:flex;justify-content:flex-end;gap:8px}
+.btn{border:1px solid var(--line);background:var(--surface);padding:8px 16px;border-radius:8px;font-weight:600}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+:root[data-theme="dark"] .btn.primary{color:#0E1420}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .btn.primary{color:#0E1420}}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.quiet{border-color:transparent;background:transparent;color:var(--muted)}
+
+main{max-width:1280px;margin:0 auto;padding:20px}
+
+/* Workout */
+.meta-row{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;margin-bottom:14px}
+.meta-row label{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:8px}
+.meta-row input[type=text],.meta-row select{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 10px;font-size:14px}
+.meta-row input[type=text]{width:240px;max-width:60vw}
+.panes{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.pane{background:var(--surface);border:1px solid var(--line);border-radius:10px;display:flex;flex-direction:column;min-height:0}
+.pane-head{display:flex;justify-content:space-between;align-items:baseline;padding:10px 16px;border-bottom:1px solid var(--line)}
+.pane-head h2{font-family:var(--display);font-weight:600;font-size:19px;margin:0}
+.pane-head span{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.pane textarea{flex:1;border:0;background:transparent;resize:none;padding:16px 18px;font-family:var(--read);font-size:17px;line-height:1.7;min-height:52vh;outline:none}
+.pane textarea::placeholder{color:var(--muted);opacity:.8}
+.pane.source textarea{color:var(--muted)}
+.pane.mine{border-color:var(--accent)}
+.live{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-top:16px}
+.live div{background:var(--surface);padding:10px 14px}
+.live dt{font-size:12.5px;color:var(--muted)}
+.live dd{margin:2px 0 0;font-family:var(--display);font-size:26px;font-weight:600;font-variant-numeric:tabular-nums}
+.live dd small{font-family:var(--ui);font-size:12px;color:var(--muted);font-weight:400;margin-left:4px}
+.hint{font-size:13px;color:var(--muted);margin-top:10px}
+kbd{font-family:var(--ui);font-size:12px;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 5px;background:var(--surface)}
+
+/* Modal */
+.scrim{position:fixed;inset:0;background:rgba(10,14,20,.45);display:none;align-items:center;justify-content:center;padding:20px;z-index:50}
+.scrim.open{display:flex}
+.sheet{background:var(--surface);border-radius:12px;max-width:620px;width:100%;max-height:90vh;overflow:auto;padding:24px 26px;border:1px solid var(--line)}
+.sheet h2{font-family:var(--display);font-size:30px;font-weight:700;margin:0 0 4px}
+.sheet p.sub{margin:0 0 18px;color:var(--muted)}
+.scale{margin:16px 0}
+.scale-label{font-weight:600;margin-bottom:8px}
+.scale-row{display:flex;gap:6px;align-items:center}
+.scale-row button{width:48px;height:44px;border:1px solid var(--line);background:var(--bg);border-radius:8px;font-family:var(--display);font-size:22px;font-weight:600}
+.scale-row button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.scale-ends{display:flex;justify-content:space-between;width:264px;font-size:12px;color:var(--muted);margin-top:4px}
+.sheet-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:22px;flex-wrap:wrap}
+
+.result-hero{display:flex;align-items:baseline;gap:12px;margin:8px 0 4px;flex-wrap:wrap}
+.result-hero .big{font-family:var(--display);font-size:72px;font-weight:700;line-height:1;color:var(--accent);font-variant-numeric:tabular-nums}
+.result-hero .unit{color:var(--muted)}
+.pb{display:none;background:var(--best-soft);color:var(--best);font-weight:600;border-radius:6px;padding:4px 10px;font-size:14px}
+.pb.on{display:inline-block}
+.cmp{width:100%;border-collapse:collapse;margin-top:16px;font-variant-numeric:tabular-nums}
+.cmp th,.cmp td{text-align:right;padding:8px 6px;border-bottom:1px solid var(--line);font-size:14px}
+.cmp th:first-child,.cmp td:first-child{text-align:left}
+.cmp thead th{color:var(--muted);font-weight:500;font-size:13px}
+.cmp td.this{font-weight:600}
+.up{color:var(--accent)} .down{color:var(--warn)}
+
+/* Dashboard */
+.dash-head{display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.dash-head h2{font-family:var(--display);font-size:34px;font-weight:700;margin:0;line-height:1}
+.store-note{font-size:13px;color:var(--muted)}
+.tally{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:22px}
+.tally div{border-top:3px solid var(--ink);padding-top:8px}
+.tally div.gold{border-top-color:var(--best)}
+.tally .n{font-family:var(--display);font-size:46px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.tally .l{font-size:13px;color:var(--muted);margin-top:4px}
+.charts{display:grid;grid-template-columns:2fr 1fr;gap:16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.card h3{font-family:var(--display);font-size:20px;font-weight:600;margin:0}
+.card p.note{margin:2px 0 10px;font-size:13px;color:var(--muted)}
+.chart-box{position:relative;height:260px}
+.card.wide{grid-column:1/-1}
+.tbl-wrap{overflow-x:auto}
+table.hist{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;min-width:820px}
+table.hist th,table.hist td{padding:8px 8px;border-bottom:1px solid var(--line);text-align:right;font-size:14px;white-space:nowrap}
+table.hist th{color:var(--muted);font-weight:500;font-size:13px}
+table.hist th:first-child,table.hist td:first-child,table.hist th:nth-child(2),table.hist td:nth-child(2){text-align:left}
+table.hist td.lbl{max-width:220px;overflow:hidden;text-overflow:ellipsis}
+table.hist tr.best td:nth-child(4){color:var(--best);font-weight:600}
+.del{border:0;background:transparent;color:var(--muted);padding:2px 6px;border-radius:4px}
+.del:hover{color:var(--warn)}
+.empty{padding:48px 20px;text-align:center;color:var(--muted)}
+.empty strong{display:block;font-family:var(--display);font-size:26px;color:var(--ink);margin-bottom:6px}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--surface);padding:8px 16px;border-radius:8px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:60}
+.toast.on{opacity:1}
+[hidden]{display:none!important}
+
+@media (max-width:980px){
+  .bar-in{grid-template-columns:1fr auto;grid-template-areas:"brand controls" "clock clock"}
+  .brand{grid-area:brand}.controls{grid-area:controls}.clock{grid-area:clock;justify-content:center}
+  .time{font-size:44px}
+  .panes{grid-template-columns:1fr}
+  .pane textarea{min-height:30vh}
+  .live{grid-template-columns:repeat(3,1fr)}
+  .charts{grid-template-columns:1fr}
+  .tally{grid-template-columns:repeat(2,1fr)}
+}
+@media (max-width:560px){
+  .brand h1{display:none}
+  .live{grid-template-columns:repeat(2,1fr)}
+  .controls .btn{padding:8px 11px}
+}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <div class="bar-in">
+    <div class="brand">
+      <h1>Paraphrase workout</h1>
+      <div class="tabs" role="tablist" aria-label="Views">
+        <button role="tab" id="tab-work" aria-selected="true" aria-controls="view-work">Workout</button>
+        <button role="tab" id="tab-dash" aria-selected="false" aria-controls="view-dash">Dashboard</button>
+      </div>
+    </div>
+    <div class="clock">
+      <div class="time" id="time" data-phase="ready" aria-live="off">0:00</div>
+      <div class="splits">
+        <span>Active</span><b id="active">0:00</b>
+        <span>Idle</span><b id="idle">0:00</b>
+        <span class="idle-flag" id="idleFlag">Idle, not counting</span>
+      </div>
+    </div>
+    <div class="controls">
+      <button class="btn primary" id="startBtn">Start</button>
+      <button class="btn" id="finishBtn" disabled>Finish</button>
+      <button class="btn quiet" id="resetBtn" disabled title="Discard this attempt">Reset</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section id="view-work" role="tabpanel" aria-labelledby="tab-work">
+    <div class="meta-row">
+      <label>Chunk label <input type="text" id="label" placeholder="e.g. Ch. 2 Lit review, para 4"></label>
+      <label><input type="checkbox" id="autoStart" checked> Start timer on first keystroke</label>
+      <label>Count as idle after
+        <select id="idleAfter">
+          <option value="30">30 seconds</option>
+          <option value="60" selected>1 minute</option>
+          <option value="120">2 minutes</option>
+          <option value="300">5 minutes</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="panes">
+      <div class="pane source">
+        <div class="pane-head"><h2>Source chunk</h2><span id="srcCount">0 words</span></div>
+        <label class="sr" for="source">Source text</label>
+        <textarea id="source" placeholder="Paste the draft paragraph you're going to rewrite."></textarea>
+      </div>
+      <div class="pane mine">
+        <div class="pane-head"><h2>Your paraphrase</h2><span id="paraCount">0 words</span></div>
+        <label class="sr" for="para">Your paraphrase</label>
+        <textarea id="para" placeholder="Rewrite it in your own words. The timer starts when you type."></textarea>
+      </div>
+    </div>
+
+    <dl class="live">
+      <div><dt>Typing speed</dt><dd id="lvWpm">–<small>wpm</small></dd></div>
+      <div><dt>Source pace</dt><dd id="lvSrc">–<small>src words/min</small></dd></div>
+      <div><dt>Length vs source</dt><dd id="lvRatio">–</dd></div>
+      <div><dt>Backspaces</dt><dd id="lvBack">0</dd></div>
+      <div><dt>Shared phrasing</dt><dd id="lvOverlap">–</dd></div>
+    </dl>
+    <p class="hint">Shared phrasing is the share of your three-word sequences that also appear in the source. Lower means more genuinely rewritten. Press <kbd>Ctrl</kbd> + <kbd>Enter</kbd> to finish.</p>
+  </section>
+
+  <section id="view-dash" role="tabpanel" aria-labelledby="tab-dash" hidden>
+    <div class="dash-head">
+      <div>
+        <h2>Your progress</h2>
+        <div class="store-note" id="storeNote">Loading your history…</div>
+      </div>
+      <button class="btn" id="exportBtn" hidden>Export CSV</button>
+    </div>
+
+    <div id="dashEmpty" class="empty" hidden>
+      <strong>No chunks logged yet</strong>
+      Finish your first paraphrase in the Workout tab and your stats will show up here.
+    </div>
+
+    <div id="dashBody" hidden>
+      <div class="tally">
+        <div><div class="n" id="tChunks">0</div><div class="l">Chunks finished</div></div>
+        <div><div class="n" id="tHours">0</div><div class="l">Active writing time</div></div>
+        <div><div class="n" id="tStreak">0</div><div class="l">Day streak</div></div>
+        <div class="gold"><div class="n" id="tBest">0</div><div class="l">Best source pace (words/min)</div></div>
+      </div>
+
+      <div class="charts">
+        <div class="card">
+          <h3>Pace over time</h3>
+          <p class="note">Source words processed per active minute. The adjusted line gives hard chunks credit (+10% per difficulty point above 3, −10% per point below).</p>
+          <div class="chart-box"><canvas id="cPace" aria-label="Pace over time chart"></canvas></div>
+        </div>
+        <div class="card">
+          <h3>Best time of day</h3>
+          <p class="note">Average adjusted pace by when you started.</p>
+          <div class="chart-box"><canvas id="cHour" aria-label="Pace by time of day chart"></canvas></div>
+        </div>
+        <div class="card">
+          <h3>Shared phrasing</h3>
+          <p class="note">Lower is better. Watch that speed gains don't come from copying more.</p>
+          <div class="chart-box"><canvas id="cOverlap" aria-label="Shared phrasing chart"></canvas></div>
+        </div>
+        <div class="card">
+          <h3>Focus and difficulty</h3>
+          <p class="note">Average adjusted pace at each focus rating.</p>
+          <div class="chart-box"><canvas id="cFocus" aria-label="Pace by focus chart"></canvas></div>
+        </div>
+        <div class="card wide">
+          <h3>History</h3>
+          <p class="note">Your best pace is highlighted.</p>
+          <div class="tbl-wrap">
+            <table class="hist">
+              <thead><tr>
+                <th>Date</th><th>Chunk</th><th>Active</th><th>Source pace</th><th>Adjusted</th><th>Typing wpm</th><th>Words (src → yours)</th><th>Shared</th><th>Backspaces</th><th>Diff.</th><th>Focus</th><th></th>
+              </tr></thead>
+              <tbody id="histBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- Check-in -->
+<div class="scrim" id="checkin" role="dialog" aria-modal="true" aria-labelledby="ciTitle">
+  <div class="sheet">
+    <h2 id="ciTitle">Quick check-in</h2>
+    <p class="sub">Two taps, then you'll see your results.</p>
+    <div class="scale">
+      <div class="scale-label">How hard was this chunk?</div>
+      <div class="scale-row" data-scale="difficulty"></div>
+      <div class="scale-ends"><span>Easy</span><span>Brutal</span></div>
+    </div>
+    <div class="scale">
+      <div class="scale-label">How focused were you?</div>
+      <div class="scale-row" data-scale="focus"></div>
+      <div class="scale-ends"><span>Scattered</span><span>Locked in</span></div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn quiet" id="ciBack">Keep writing</button>
+      <button class="btn primary" id="ciSave" disabled>Save and see results</button>
+    </div>
+  </div>
+</div>
+
+<!-- Results -->
+<div class="scrim" id="results" role="dialog" aria-modal="true" aria-labelledby="rsTitle">
+  <div class="sheet">
+    <h2 id="rsTitle">Chunk done</h2>
+    <p class="sub" id="rsLabel"></p>
+    <div class="result-hero">
+      <span class="big" id="rsPace">0</span>
+      <span class="unit">source words per active minute</span>
+      <span class="pb" id="rsPB">New personal best</span>
+    </div>
+    <table class="cmp">
+      <thead><tr><th></th><th>This chunk</th><th>Your average</th><th>Your best</th></tr></thead>
+      <tbody id="rsTable"></tbody>
+    </table>
+    <div class="sheet-actions">
+      <button class="btn" id="rsCopy">Copy my paraphrase</button>
+      <button class="btn" id="rsDash">Open dashboard</button>
+      <button class="btn primary" id="rsNext">Start next chunk</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(function(){
+"use strict";
+const $ = id => document.getElementById(id);
+const LS = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+
+/* ---------- Text helpers ---------- */
+function words(t){ return t.toLowerCase().replace(/[^\p{L}\p{N}\s'’-]/gu," ").split(/\s+/).filter(Boolean); }
+function countWords(t){ return words(t).length; }
+function overlapPct(src, para){
+  const s = words(src), p = words(para);
+  if (p.length < 3 || s.length < 3) return null;
+  const grams = new Set();
+  for (let i=0;i<s.length-2;i++) grams.add(s[i]+" "+s[i+1]+" "+s[i+2]);
+  let hit = 0, total = 0;
+  for (let i=0;i<p.length-2;i++){ total++; if (grams.has(p[i]+" "+p[i+1]+" "+p[i+2])) hit++; }
+  return total ? Math.round(hit/total*100) : null;
+}
+function fmt(ms){
+  const s = Math.floor(ms/1000), h = Math.floor(s/3600), m = Math.floor((s%3600)/60), r = s%60;
+  return h ? `${h}:${String(m).padStart(2,"0")}:${String(r).padStart(2,"0")}` : `${m}:${String(r).padStart(2,"0")}`;
+}
+function fmtSec(sec){ return fmt(sec*1000); }
+const r1 = n => Math.round(n*10)/10;
+function adjust(pace, diff){ return r1(pace * (1 + 0.1*((diff||3)-3))); }
+
+/* ---------- Timer state ---------- */
+const T = { phase:"ready", accMs:0, runStart:0, lastInput:0, idleMs:0, backspaces:0, startedAt:null };
+const workNow = () => T.accMs + (T.phase==="running" ? performance.now()-T.runStart : 0);
+const idleLimit = () => Number($("idleAfter").value)*1000;
+function currentGap(){ return workNow() - T.lastInput; }
+function liveIdle(){ const g = currentGap(); return T.idleMs + (g > idleLimit() ? g : 0); }
+
+function start(){
+  if (T.phase==="ready"){ T.accMs=0; T.idleMs=0; T.lastInput=0; T.backspaces=0; T.startedAt=new Date(); }
+  if (T.phase==="running") return;
+  T.runStart = performance.now(); T.phase = "running"; syncControls();
+}
+function pause(){
+  if (T.phase!=="running") return;
+  T.accMs += performance.now()-T.runStart; T.phase="paused"; syncControls();
+}
+function reset(){
+  T.phase="ready"; T.accMs=0; T.idleMs=0; T.lastInput=0; T.backspaces=0; T.startedAt=null;
+  syncControls(); tick(); updateLive();
+}
+function syncControls(){
+  $("time").dataset.phase = T.phase;
+  $("startBtn").textContent = T.phase==="running" ? "Pause" : (T.phase==="paused" ? "Resume" : "Start");
+  $("finishBtn").disabled = T.phase==="ready";
+  $("resetBtn").disabled = T.phase==="ready";
+}
+function tick(){
+  const total = workNow(), idle = Math.min(liveIdle(), total);
+  $("time").textContent = fmt(total);
+  $("active").textContent = fmt(total-idle);
+  $("idle").textContent = fmt(idle);
+  $("idleFlag").classList.toggle("on", T.phase==="running" && currentGap() > idleLimit());
+}
+setInterval(()=>{ tick(); if (T.phase==="running") updateLiveRates(); }, 250);
+
+/* ---------- Inputs ---------- */
+const src = $("source"), para = $("para"), label = $("label");
+const draft = LS.get("pw_draft", {});
+src.value = draft.source||""; para.value = draft.para||""; label.value = draft.label||"";
+$("autoStart").checked = LS.get("pw_auto", true);
+$("idleAfter").value = String(LS.get("pw_idle", 60));
+let draftTimer;
+function saveDraft(){ clearTimeout(draftTimer); draftTimer = setTimeout(()=>LS.set("pw_draft",{source:src.value,para:para.value,label:label.value}), 400); }
+$("autoStart").addEventListener("change", e=>LS.set("pw_auto", e.target.checked));
+$("idleAfter").addEventListener("change", e=>LS.set("pw_idle", Number(e.target.value)));
+
+para.addEventListener("keydown", e=>{
+  if ((e.key==="Enter") && (e.ctrlKey||e.metaKey)){ e.preventDefault(); openCheckin(); return; }
+  if (e.key==="Backspace"||e.key==="Delete"){ if (T.phase!=="ready") T.backspaces++; }
+});
+para.addEventListener("input", ()=>{
+  if (T.phase==="ready" && $("autoStart").checked && para.value.trim()) start();
+  else if (T.phase==="paused") start();
+  if (T.phase==="running"){
+    const now = workNow(), gap = now - T.lastInput;
+    if (gap > idleLimit()) T.idleMs += gap;
+    T.lastInput = now;
+  }
+  updateLive(); saveDraft();
+});
+src.addEventListener("input", ()=>{ updateLive(); saveDraft(); });
+label.addEventListener("input", saveDraft);
+
+$("startBtn").addEventListener("click", ()=>{
+  if (T.phase==="running") pause();
+  else { start(); if (T.phase==="running" && T.lastInput===0) T.lastInput = workNow(); para.focus(); }
+});
+$("resetBtn").addEventListener("click", ()=>{ if (confirm("Discard this attempt's timer? Your text stays.")) reset(); });
+$("finishBtn").addEventListener("click", openCheckin);
+window.addEventListener("beforeunload", e=>{ if (T.phase!=="ready"){ e.preventDefault(); e.returnValue=""; } });
+
+let overlapTimer;
+function updateLive(){
+  const sw = countWords(src.value), pw = countWords(para.value);
+  $("srcCount").textContent = `${sw} word${sw===1?"":"s"}`;
+  $("paraCount").textContent = `${pw} word${pw===1?"":"s"}`;
+  $("lvRatio").innerHTML = sw && pw ? `${Math.round(pw/sw*100)}<small>%</small>` : "–";
+  $("lvBack").textContent = T.backspaces;
+  updateLiveRates();
+  clearTimeout(overlapTimer);
+  overlapTimer = setTimeout(()=>{ const o = overlapPct(src.value, para.value); $("lvOverlap").innerHTML = o==null ? "–" : `${o}<small>%</small>`; }, 300);
+}
+function updateLiveRates(){
+  const activeMin = (workNow() - Math.min(liveIdle(), workNow()))/60000;
+  const sw = countWords(src.value), pw = countWords(para.value);
+  if (activeMin < 0.1 || T.phase==="ready"){ $("lvWpm").innerHTML = "–<small>wpm</small>"; $("lvSrc").innerHTML = "–<small>src words/min</small>"; return; }
+  $("lvWpm").innerHTML = `${Math.round(pw/activeMin)}<small>wpm</small>`;
+  $("lvSrc").innerHTML = `${r1(sw/activeMin)}<small>src words/min</small>`;
+}
+updateLive();
+
+/* ---------- Check-in ---------- */
+const rating = { difficulty:null, focus:null };
+document.querySelectorAll(".scale-row").forEach(row=>{
+  for (let i=1;i<=5;i++){
+    const b = document.createElement("button"); b.type="button"; b.textContent=i; b.setAttribute("aria-pressed","false");
+    b.setAttribute("aria-label", `${row.dataset.scale} ${i} of 5`);
+    b.addEventListener("click", ()=>{
+      rating[row.dataset.scale]=i;
+      row.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed", String(x===b)));
+      $("ciSave").disabled = !(rating.difficulty && rating.focus);
+    });
+    row.appendChild(b);
+  }
+});
+let frozen = null;
+function openCheckin(){
+  if (T.phase==="ready") return;
+  if (!countWords(para.value)){ toast("Write your paraphrase before finishing."); return; }
+  if (!countWords(src.value)){ toast("Paste the source chunk so your pace can be measured."); return; }
+  pause();
+  const total = workNow(), gap = total - T.lastInput;
+  const idle = Math.min(T.idleMs + (gap > idleLimit() ? gap : 0), total);
+  frozen = { total, idle };
+  rating.difficulty = rating.focus = null;
+  document.querySelectorAll(".scale-row button").forEach(x=>x.setAttribute("aria-pressed","false"));
+  $("ciSave").disabled = true;
+  $("checkin").classList.add("open");
+  $("checkin").querySelector(".scale-row button").focus();
+}
+$("ciBack").addEventListener("click", ()=>{ $("checkin").classList.remove("open"); frozen=null; para.focus(); });
+$("ciSave").addEventListener("click", async ()=>{
+  const { total, idle } = frozen;
+  const activeSec = Math.max(1, Math.round((total-idle)/1000));
+  const sw = countWords(src.value), pw = countWords(para.value);
+  const pace = r1(sw/(activeSec/60));
+  const rec = {
+    id: "s" + Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+    label: label.value.trim().slice(0,120),
+    startedAt: T.startedAt.toISOString(),
+    endedAt: new Date().toISOString(),
+    hour: T.startedAt.getHours(),
+    totalSec: Math.round(total/1000), activeSec, idleSec: Math.round(idle/1000),
+    sourceWords: sw, paraWords: pw,
+    typingWpm: r1(pw/(activeSec/60)), sourcePace: pace,
+    adjustedPace: adjust(pace, rating.difficulty),
+    backspaces: T.backspaces,
+    revisionRate: r1(T.backspaces/Math.max(pw,1)*100),
+    overlapPct: overlapPct(src.value, para.value),
+    lengthRatio: Math.round(pw/sw*100),
+    difficulty: rating.difficulty, focus: rating.focus
+  };
+  const prior = sessions.slice();
+  $("ciSave").disabled = true;
+  const ok = await store.save(rec);
+  $("checkin").classList.remove("open");
+  if (!ok) toast("Couldn't save this chunk. It's shown below but won't appear in your history.");
+  showResults(rec, prior);
+  T.phase="ready"; syncControls();
+});
+
+/* ---------- Results ---------- */
+function showResults(rec, prior){
+  $("rsLabel").textContent = rec.label ? rec.label : "Unlabelled chunk";
+  $("rsPace").textContent = rec.sourcePace;
+  const bestPrior = prior.length ? Math.max(...prior.map(s=>s.adjustedPace||0)) : null;
+  $("rsPB").classList.toggle("on", prior.length>0 && rec.adjustedPace > bestPrior);
+  const avg = k => { const v = prior.map(s=>s[k]).filter(x=>typeof x==="number"); return v.length ? v.reduce((a,b)=>a+b,0)/v.length : null; };
+  const best = (k, low) => { const v = prior.map(s=>s[k]).filter(x=>typeof x==="number"); return v.length ? (low?Math.min(...v):Math.max(...v)) : null; };
+  const rows = [
+    ["Source pace (words/min)", "sourcePace", false, v=>r1(v)],
+    ["Adjusted pace", "adjustedPace", false, v=>r1(v)],
+    ["Typing speed (wpm)", "typingWpm", false, v=>Math.round(v)],
+    ["Active time", "activeSec", null, v=>fmtSec(Math.round(v))],
+    ["Shared phrasing", "overlapPct", true, v=>Math.round(v)+"%"],
+    ["Backspaces per 100 words", "revisionRate", null, v=>r1(v)]
+  ];
+  $("rsTable").innerHTML = rows.map(([name,k,lowBetter,f])=>{
+    const t = rec[k], a = avg(k), b = lowBetter===null ? null : best(k, lowBetter);
+    let cls = "";
+    if (lowBetter!==null && a!=null && t!=null){ const better = lowBetter ? t < a : t > a; cls = t===a ? "" : (better?"up":"down"); }
+    return `<tr><td>${name}</td><td class="this ${cls}">${t==null?"–":f(t)}</td><td>${a==null?"–":f(a)}</td><td>${b==null?"–":f(b)}</td></tr>`;
+  }).join("");
+  $("results").classList.add("open");
+  $("rsNext").focus();
+}
+$("rsCopy").addEventListener("click", async ()=>{
+  try{ await navigator.clipboard.writeText(para.value); toast("Paraphrase copied."); }
+  catch(e){ para.select(); toast("Select-all done. Press Ctrl+C to copy."); }
+});
+$("rsNext").addEventListener("click", ()=>{
+  $("results").classList.remove("open");
+  src.value=""; para.value=""; saveDraft(); reset(); src.focus();
+});
+$("rsDash").addEventListener("click", ()=>{ $("results").classList.remove("open"); src.value=""; para.value=""; saveDraft(); reset(); showTab("dash"); });
+document.addEventListener("keydown", e=>{
+  if (e.key==="Escape"){
+    if ($("checkin").classList.contains("open")) $("ciBack").click();
+    else if ($("results").classList.contains("open")) $("rsNext").click();
+  }
+});
+
+/* ---------- Tabs ---------- */
+function showTab(which){
+  const work = which==="work";
+  $("tab-work").setAttribute("aria-selected", String(work));
+  $("tab-dash").setAttribute("aria-selected", String(!work));
+  $("view-work").hidden = !work; $("view-dash").hidden = work;
+  if (!work) renderDash();
+}
+$("tab-work").addEventListener("click", ()=>showTab("work"));
+$("tab-dash").addEventListener("click", ()=>showTab("dash"));
+
+/* ---------- Storage ---------- */
+let sessions = [];
+const store = {
+  mode: "pending", ref: null,
+  async save(rec){
+    if (this.mode==="db"){
+      try{ await this.ref.doc(rec.id).set(rec); return true; }
+      catch(e){ if (e && e.code==="quota_exceeded"){ toast("Storage is full. Delete some old sessions to keep logging."); return false; } }
+    }
+    const all = LS.get("pw_sessions", []); all.push(rec); LS.set("pw_sessions", all);
+    if (this.mode!=="db"){ sessions = all; renderDash(); }
+    return true;
+  },
+  async remove(id){
+    if (this.mode==="db"){ try{ await this.ref.doc(id).delete(); }catch(e){ toast("Couldn't delete that session."); } return; }
+    sessions = LS.get("pw_sessions", []).filter(s=>s.id!==id); LS.set("pw_sessions", sessions); renderDash();
+  }
+};
+function useLocal(note){
+  store.mode = "local"; sessions = LS.get("pw_sessions", []);
+  $("storeNote").textContent = note; renderDash();
+}
+(async ()=>{
+  const cl = window.claude;
+  if (!cl || !cl.use){ useLocal("History is saved in this browser only."); return; }
+  try{
+    const [db, user] = await Promise.all([cl.use("db"), cl.use("user")]);
+    const uid = user ? await user.id() : null;
+    if (!db || !uid){ useLocal("History is saved in this browser only."); return; }
+    store.ref = db.doc("data/users/"+uid+"/profile").collection("sessions");
+    store.mode = "db";
+    $("storeNote").textContent = "History is saved privately to your account.";
+    store.ref.orderBy("startedAt","asc").limit(1000).onSnapshot(snap=>{
+      sessions = snap.docs.map(d=>d.data());
+      renderDash();
+    }, ()=>{ useLocal("Account storage became unavailable. New sessions save in this browser."); });
+  }catch(e){ useLocal("History is saved in this browser only."); }
+})();
+
+/* ---------- Downloads ---------- */
+let downloads = null;
+(async ()=>{ try{ downloads = window.claude && window.claude.use ? await window.claude.use("downloads") : null; }catch(e){} renderDash(); })();
+$("exportBtn").addEventListener("click", async ()=>{
+  const cols = ["startedAt","label","totalSec","activeSec","idleSec","sourceWords","paraWords","sourcePace","adjustedPace","typingWpm","overlapPct","lengthRatio","backspaces","revisionRate","difficulty","focus"];
+  const esc = v => { const s = v==null ? "" : String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s; };
+  const csv = [cols.join(",")].concat(sessions.map(s=>cols.map(c=>esc(s[c])).join(","))).join("\n");
+  if (!downloads){
+    const url = URL.createObjectURL(new Blob([csv], {type:"text/csv"}));
+    const a = document.createElement("a"); a.href = url; a.download = "paraphrase-sessions.csv";
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url), 1000);
+    return;
+  }
+  try{ await downloads.save({ filename:"paraphrase-sessions.csv", data:csv }); }
+  catch(e){ if (e && e.code!=="declined") toast("Export isn't available right now."); }
+});
+
+/* ---------- Dashboard ---------- */
+const charts = {};
+function css(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+function streak(list){
+  const days = new Set(list.map(s=>new Date(s.startedAt).toDateString()));
+  const d = new Date(); let n = 0;
+  if (!days.has(d.toDateString())) d.setDate(d.getDate()-1);
+  while (days.has(d.toDateString())){ n++; d.setDate(d.getDate()-1); }
+  return n;
+}
+function renderDash(){
+  if ($("view-dash").hidden) return;
+  const has = sessions.length > 0;
+  $("dashEmpty").hidden = has || store.mode==="pending";
+  $("dashBody").hidden = !has;
+  $("exportBtn").hidden = !has;
+  if (!has) return;
+
+  const activeSec = sessions.reduce((a,s)=>a+(s.activeSec||0),0);
+  $("tChunks").textContent = sessions.length;
+  $("tHours").textContent = activeSec >= 3600 ? r1(activeSec/3600)+"h" : Math.round(activeSec/60)+"m";
+  $("tStreak").textContent = streak(sessions);
+  const bestAdj = Math.max(...sessions.map(s=>s.adjustedPace||0));
+  $("tBest").textContent = r1(Math.max(...sessions.map(s=>s.sourcePace||0)));
+
+  const rows = sessions.slice().reverse();
+  $("histBody").innerHTML = rows.map(s=>{
+    const d = new Date(s.startedAt);
+    return `<tr class="${s.adjustedPace===bestAdj?"best":""}">
+      <td>${d.toLocaleDateString(undefined,{month:"short",day:"numeric"})} ${d.toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"})}</td>
+      <td class="lbl" title="${escapeHtml(s.label||"")}">${escapeHtml(s.label||"—")}</td>
+      <td>${fmtSec(s.activeSec)}</td><td>${s.sourcePace}</td><td>${s.adjustedPace}</td><td>${Math.round(s.typingWpm)}</td>
+      <td>${s.sourceWords} → ${s.paraWords}</td><td>${s.overlapPct==null?"–":s.overlapPct+"%"}</td><td>${s.backspaces}</td>
+      <td>${s.difficulty}</td><td>${s.focus}</td>
+      <td><button class="del" data-id="${s.id}" aria-label="Delete session">Delete</button></td></tr>`;
+  }).join("");
+
+  if (!window.Chart) return;
+  const ink = css("--ink"), muted = css("--muted"), line = css("--line"), accent = css("--accent"), best = css("--best");
+  Chart.defaults.font.family = css("--ui"); Chart.defaults.color = muted;
+  const labels = sessions.map((s,i)=>`#${i+1}`);
+  const tipTitle = items => { const s = sessions[items[0].dataIndex]; return s ? (s.label||"Unlabelled")+" — "+new Date(s.startedAt).toLocaleDateString() : ""; };
+  const scales = (yTitle, min0=true) => ({
+    x:{ grid:{display:false}, ticks:{maxTicksLimit:10} },
+    y:{ beginAtZero:min0, grid:{color:line}, title:{display:!!yTitle,text:yTitle} }
+  });
+  const make = (key, cfg) => { if (charts[key]) charts[key].destroy(); charts[key] = new Chart($(key), cfg); };
+
+  make("cPace", { type:"line", data:{ labels, datasets:[
+      { label:"Source pace", data:sessions.map(s=>s.sourcePace), borderColor:muted, backgroundColor:muted, pointRadius:3, tension:.25, borderWidth:1.5 },
+      { label:"Adjusted for difficulty", data:sessions.map(s=>s.adjustedPace), borderColor:accent, backgroundColor:accent, pointRadius:3, tension:.25, borderWidth:2.5 }
+    ]},
+    options:{ maintainAspectRatio:false, interaction:{mode:"index",intersect:false}, plugins:{ legend:{position:"bottom",labels:{boxWidth:12}}, tooltip:{callbacks:{title:tipTitle}} }, scales:scales("words/min") }
+  });
+
+  const buckets = [["Morning",5,12],["Afternoon",12,17],["Evening",17,21],["Night",21,29]];
+  const hourAvg = buckets.map(([,a,b])=>{ const v = sessions.filter(s=>{ const h = s.hour<5 ? s.hour+24 : s.hour; return h>=a && h<b; }).map(s=>s.adjustedPace); return v.length ? r1(v.reduce((x,y)=>x+y,0)/v.length) : 0; });
+  const topH = Math.max(...hourAvg);
+  make("cHour", { type:"bar", data:{ labels:buckets.map(b=>b[0]), datasets:[{ data:hourAvg, backgroundColor:hourAvg.map(v=>v===topH&&v>0?best:line), borderRadius:4 }] },
+    options:{ maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:scales("") } });
+
+  make("cOverlap", { type:"line", data:{ labels, datasets:[{ label:"Shared phrasing %", data:sessions.map(s=>s.overlapPct), borderColor:ink, backgroundColor:ink, pointRadius:3, tension:.25, borderWidth:2, spanGaps:true }] },
+    options:{ maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{title:tipTitle}}}, scales:{ ...scales("%"), y:{ min:0, max:100, grid:{color:line} } } } });
+
+  const focusAvg = [1,2,3,4,5].map(f=>{ const v = sessions.filter(s=>s.focus===f).map(s=>s.adjustedPace); return v.length ? r1(v.reduce((x,y)=>x+y,0)/v.length) : 0; });
+  make("cFocus", { type:"bar", data:{ labels:["1","2","3","4","5"], datasets:[{ data:focusAvg, backgroundColor:accent, borderRadius:4 }] },
+    options:{ maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ ...scales(""), x:{grid:{display:false}, title:{display:true,text:"Focus rating"}} } } });
+}
+$("histBody").addEventListener("click", e=>{
+  const b = e.target.closest(".del"); if (!b) return;
+  if (confirm("Delete this session from your history?")) store.remove(b.dataset.id);
+});
+function escapeHtml(s){ return s.replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", renderDash);
+new MutationObserver(renderDash).observe(document.documentElement, {attributes:true, attributeFilter:["data-theme"]});
+
+let toastT;
+function toast(msg){ const t = $("toast"); t.textContent = msg; t.classList.add("on"); clearTimeout(toastT); toastT = setTimeout(()=>t.classList.remove("on"), 3200); }
+})();
+</script>
+</body>
+</html>
