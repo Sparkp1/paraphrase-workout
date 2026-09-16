@@ -2,7 +2,7 @@
 
 Turn paraphrasing into a mental workout. Paste a paragraph, rewrite it in your own words, and the app times you, measures your speed, and tracks your progress over time.
 
-**▶ Try it here:** [https://YOUR-USERNAME.github.io/YOUR-REPO-NAME/](https://sparkp1.github.io/paraphrase-workout/)
+**▶ Try it here:** https://sparkp1.github.io/paraphrase-workout/
 
 No sign-up, no installation. It runs entirely in your browser.
 
